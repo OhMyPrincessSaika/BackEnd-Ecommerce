@@ -1,14 +1,13 @@
 const multer = require('multer');
 const sharp = require('sharp');
+const path = require('path');
 const multerStorage = multer.diskStorage({
     destination : function(req,file,cb) {
-        // const isProd = process.env.NODE_ENV === 'production';
-        // const path = isProd ? '../public' : './public';
-        cb(null,'./public/images' );
+        const pathDestination = path.join(__dirname,'../public/images');
+        cb(null,pathDestination)
     },
     filename : function(req,file,cb) {
         const uniqueSuffix = Date.now() + Math.round(Math.random() * 1e9);
-        console.log(file)
         cb(null,file.fieldname+"-"+uniqueSuffix+".jpeg");
     }
 

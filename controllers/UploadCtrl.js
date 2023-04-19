@@ -5,22 +5,27 @@ cloudinary.config({
     api_key : process.env.API_KEY,
     api_secret : process.env.API_SECRET
 });
-// const {uploadImages,deleteImages} = require('../util/cloudinary');
-const {uploadToCloudinary} =require('../util/test_cloudinary')
-const {StatusCodes} = require('http-status-codes')
+const {uploadImages,deleteImages} = require('../util/cloudinary');
+const {StatusCodes} = require('http-status-codes');
+const { BadRequestErr } = require('../errors');
 const uploadProductImages = async(req,res) => {
     try{
 
         const files = req.files;
-        const uploadedImages = await Promise.all(files.map(async (file) => {
-            const result = await cloudinary.uploader.upload(file.path);
-            return result.secure_url;
-          }));
-        res.status(200).json({ images: uploadedImages });
+        console.log(files);
+        for(let file of files) {
+            const {path} = file;
+            console.log('path'+path);
+            const uploadFile = await uploadImages(path,'images');
+            if(!uploadFile) throw new BadRequestErr('failed to upload file(s)');
+            fs.unlink(path,(err) => {
+                console.log(err);
+            })
+            res.status(StatusCodes.OK).json(uploadFile);
+        }
     }catch(err) {
         console.log(err);
-    }
-   
+    } 
 }
 const deleteProductImages = async( req,res) => {
     const {id} = req.params;
