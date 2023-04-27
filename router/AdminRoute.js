@@ -8,6 +8,5 @@ router.route('/coupon').post(authmiddleware,adminmiddleware,createCoupon).get(au
 router.route('/coupon/:id').patch(authmiddleware,adminmiddleware,updateCoupon).delete(authmiddleware,adminmiddleware,deleteCoupon).get(authmiddleware,adminmiddleware,getCoupon);
 router.route('/coupon/give-coupon/:id').post(authmiddleware,adminmiddleware,giveCouponToUser)
 router.route('/coupon/remove-coupon/:id').post(authmiddleware,adminmiddleware,removeCouponFromUser)
-router.route('/order/update-order').patch(authmiddleware,adminmiddleware,updateOrderStatus)
-router.route('/order/getorders').get(getOrders)
+
 module.exports = router;

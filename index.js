@@ -12,6 +12,7 @@ const authRoute = require('./router/AuthRoute');
 const userRoute = require('./router/UserRoute');
 const adminRoute = require('./router/AdminRoute');
 const productRoute = require('./router/ProductRoute');
+const orderRoute = require('./router/OrderRoute');
 const brandRoute = require('./router/BrandRoute');
 const categoryRoute = require('./router/CategoryRoute');
 const colorRoute = require('./router/ColorRoute');
@@ -35,6 +36,7 @@ app.use('/color',colorRoute);
 app.use('/enquiry',enqRoute);
 app.use('/upload',uploadRoute)
 app.use('/blog',blogRoute);
+app.use('/order',orderRoute)
 app.use('/blog-category',blogCatRoute);
 app.use(notfoundmiddleware)
 

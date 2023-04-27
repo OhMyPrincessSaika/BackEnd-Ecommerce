@@ -129,25 +129,7 @@ const deleteCoupon = async (req,res) => {
     res.status(StatusCodes.OK).json(coupon);
 }
 
-const updateOrderStatus = async(req,res) => {
-    const {id} = req.user;
-    const {orderStatus} = req.body;
-    const orderToBeUpdated = await Order.findOneAndUpdate(
-        {orderBy : id},
-        {orderStatus},
-        {new :true}
-    )
-    res.status(StatusCodes.OK).json(orderToBeUpdated);
-}
-
-const getOrders = async(req,res) => {
-    const orders = await Order.find({}).populate('orderBy products.product');
-    if(orders.length < 1) {
-        throw new NotFoundErr('there is no orders');
-    }
-   
-    res.status(StatusCodes.OK).json(orders);
-}
 
 
-module.exports = {getAllUsers,getUser,getOrders,updateUser,deleteUser,createCoupon,getAllCoupons,giveCouponToUser,updateCoupon,deleteCoupon,getCoupon,removeCouponFromUser,updateOrderStatus};
+
+module.exports = {getAllUsers,getUser,updateUser,deleteUser,createCoupon,getAllCoupons,giveCouponToUser,updateCoupon,deleteCoupon,getCoupon,removeCouponFromUser};

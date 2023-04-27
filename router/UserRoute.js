@@ -8,5 +8,4 @@ router.route('/password/update-password').post(authmiddleware,updatePassword)
 router.route('/password/reset-password/:token').post(resetPassword)
 router.route('/coupon').get(getAllCoupons);
 router.route('/coupon/apply-coupon/:couponId').post(authmiddleware,applyCoupon)
-router.route('/order').post(authmiddleware,createOrder)
 module.exports = router;
