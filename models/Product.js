@@ -33,6 +33,9 @@ var prodcutSchema = new mongoose.Schema({
             }
         }
     ],
+    totalRating : {
+        type : Number
+    },
     price : {
         type : Number,
         require: true

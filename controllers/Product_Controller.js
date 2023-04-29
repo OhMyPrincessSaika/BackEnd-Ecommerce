@@ -77,6 +77,21 @@ const getAllProducts = async(req,res) => {
         result.select(fields.split(',').join(' '));
     }
     const products = await result;
+    let totalRating;
+    let totalStars=0;
+    let totalReview=0;
+    products?.map(async(product) => {
+        if(product.ratings.length > 0) {
+           product.ratings.map((rating) => {
+             totalStars+= rating.star
+             totalReview++;
+           })
+           totalRating = Math.round(totalStars/totalReview);
+        }else {
+            totalRating = 0;
+        }
+        await Product.findByIdAndUpdate(product._id,{totalRating},{new:true});
+    });
     if(!products.length > 0) throw new NotFoundErr("there's no products");
     res.status(StatusCodes.OK).json({products,hits : products.length});
 }
