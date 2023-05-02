@@ -4,7 +4,6 @@ const {UnauthorizedErr,BadRequestErr,DuplicateErr,NotFoundErr} = require('../err
 const jwt = require('jsonwebtoken')
 const authmiddleware = async(req,res,next) => {
     const auth = req.headers.authorization;
-  
     if(!auth || !auth.startsWith('Bearer')) throw new UnauthorizedErr('Unauthoried to access');
     const token = auth.split(' ')[1];
     const decode = await jwt.verify(token,process.env.JWT_SECRET);

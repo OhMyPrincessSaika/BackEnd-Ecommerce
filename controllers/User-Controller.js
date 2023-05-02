@@ -87,6 +87,18 @@ const applyCoupon = async(req,res) => {
     }
 }
 
+const getUserWishLists = async(req,res) => {
+    const {id} = req.user;
+    try{
+
+        const user = await User.findById(id).populate('wishlists.product');
+        if(!user) throw new BadRequestErr(`there is no user with id ${id}`)
+       
+        res.status(StatusCodes.OK).json(user.wishlists);
+    }catch(err) {
+        console.log(err);
+    }
+}
 
 
-module.exports = {updatePassword,forgotPassword,resetPassword,getAllCoupons,applyCoupon}
+module.exports = {updatePassword,forgotPassword,resetPassword,getAllCoupons,applyCoupon,getUserWishLists}

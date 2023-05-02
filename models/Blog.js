@@ -18,6 +18,11 @@ const blogSchema = new mongoose.Schema({
         required : [true,'description is required']
     }
     
-})
+} ,
+ {
+    timestamps : true
+ }
+
+)
 
 module.exports = mongoose.model('Blog',blogSchema);

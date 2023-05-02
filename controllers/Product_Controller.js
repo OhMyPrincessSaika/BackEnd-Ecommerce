@@ -1,5 +1,6 @@
 const {StatusCodes} = require('http-status-codes');
 const mongoose = require('mongoose');
+
 const {BadRequestErr,NotFoundErr, UnauthorizedErr, CustomErr} = require('../errors')
 const {uploadImages,deleteImages} = require('../util/cloudinary');
 const Product = require('../models/Product');
@@ -130,20 +131,55 @@ const rateAProduct = async(req,res) => {
 }
 
 const addToWishLists = async (req,res) => {
+    console.log('add to wishlists')
     const {productId} = req.params;
     const product = await Product.findById(productId);
     if(!product) throw new BadRequestErr('product does not exist.')
     const {id} = req.user;
-    const user = await User.findByIdAndUpdate(
-        id,
-        {$push : {wishlists : {product : productId}}},
-        {new :true}
-    ).populate('wishlists.product');
-    if(!user) throw new BadRequestErr('add to wish lists failed');
-    res.status(StatusCodes.OK).json(user);
+    const objectId = mongoose.Types.ObjectId(productId);
+    const user = await User.findById(id);
+    const isProductExist = user.wishlists.find((product) => {
+        console.log(product.product.toString()===objectId.toString());
+        return product.product.toString() === objectId.toString()
+    }); 
+    console.log(isProductExist)
+    if(isProductExist) {
+        throw new BadRequestErr('product is already in wishlist');
+    } else {
+      const updatedUser = await User.findByIdAndUpdate(
+       id,
+       {
+        $push  : {
+            wishlists : {product : productId}
+        }
+       },
+       {
+        new : true
+       }
+    );
+        if(!updatedUser) throw new BadRequestErr('add to wish lists failed');
+        res.status(StatusCodes.OK).json(updatedUser);
+
+    }
     
 }
-
+const removeFromWishlist = async(req,res) => {
+    const {productId} = req.params;
+    const product = await Product.findById(productId);
+    if(!product) throw new BadRequestErr('product doesn\'t exist ');
+    const {id} = req.user;
+    const user = await User.findByIdAndUpdate(
+        id,
+        {
+            $pull : {wishlists : {product : productId}}
+        },
+        {
+            new : true
+        }
+    )
+    if(!user) throw new BadRequestErr('remove from wish lists failed');
+    res.status(StatusCodes.OK).json(user);
+}
 const addToCart = async(req,res) => {
     // console.log('add to cart')
     const {id} = req.user;
@@ -298,4 +334,4 @@ const getUserCart = async(req,res) => {
 
 
 
-module.exports = {createProduct,updateProduct,getProduct,getAllProducts,deleteProduct,rateAProduct,addToWishLists,addToCart,rateAProduct,getUserCart,removeFromCart}
+module.exports = {createProduct,updateProduct,getProduct,getAllProducts,deleteProduct,rateAProduct,addToWishLists,removeFromWishlist,addToCart,rateAProduct,getUserCart,removeFromCart}
