@@ -22,7 +22,7 @@ var prodcutSchema = new mongoose.Schema({
     sold : {
         type : Number
     },
-    tags : String,
+    tag : String,
     ratings : [
         {
             star : Number,
