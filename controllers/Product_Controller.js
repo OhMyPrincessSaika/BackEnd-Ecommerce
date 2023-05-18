@@ -20,6 +20,13 @@ const createProduct = async(req,res) => {
         console.log(err);
     }
 }
+const getTags = async(req,res) => {
+    const allProducts = await Product.find({});
+    const tagsArr = Array.from(allProducts.map((product) => {
+        return product.tag;
+    }))
+    res.status(StatusCodes.OK).json(tagsArr);
+}
 const getProduct = async(req,res) => {
     const {id} = req.params;
     const product = await Product.findById(id);
@@ -37,7 +44,8 @@ const updateProduct = async(req,res) => {
     res.status(StatusCodes.OK).json(updatedProduct)
 }
 const getAllProducts = async(req,res) => {
-    const {brand,name,category,sort,fields,numericFields,limit,page} = req.query;
+    const {brand,name,category,sort,fields,tag,numericFields,limit,page} = req.query;
+    console.log(numericFields,name)
     const queryObj = {};
     if(brand) {
         queryObj.brand = brand;
@@ -48,6 +56,10 @@ const getAllProducts = async(req,res) => {
     if(category) {
         queryObj.category = category;
     }
+    if(tag) {
+        queryObj.tag = tag;
+    }
+    console.log(queryObj);
     const Replacer = {
         "<" : "$lt",
         "<=" : "$lte",
@@ -56,15 +68,25 @@ const getAllProducts = async(req,res) => {
         ">=" : "$gte"
     }
     if(numericFields) {
+        console.log('here')
     const regExp = /\b(<|>|<=|>=|=)\b/g;
     let modifyString = numericFields.replace(regExp,(match) => `-${Replacer[match]}-`);
+    // console.log(modifyString)
+    let arr = [];
     modifyString = modifyString.split(',').forEach((comparison) =>  {
         const [key,operator,value] = comparison.split('-');
-        queryObj[key] = { [operator] : value}
+        if(key==='price') {
+            queryObj[key] = { [operator] : value}
+            arr.push(queryObj[key]);
+        }
     });
-    
+    if(arr.length > 1) {
+        queryObj.price = Object.assign({},arr[0],arr[1]);
+    } 
     }
+   
     const result =  Product.find(queryObj);
+   
     if(page) {
         console.log(page,limit);
         const skip = (page-1) * limit;
@@ -78,6 +100,7 @@ const getAllProducts = async(req,res) => {
         result.select(fields.split(',').join(' '));
     }
     const products = await result;
+
     let totalRating;
     let totalStars=0;
     let totalReview=0;
@@ -109,23 +132,32 @@ const rateAProduct = async(req,res) => {
     const {id} = req.user;
     const product = await Product.findById(productId);
     const isAlreadyRated = product.ratings.find((item) => item.postedBy.toString() === id.toString());
+    console.log(isAlreadyRated)
     if(!isAlreadyRated) {
         const updateProduct = await Product.findByIdAndUpdate(
             productId,
             {$push : {ratings : {star,comment,postedBy:id}}},
             {new:true}
-        )
+        ).populate('postedBy')
+        console.log(updateProduct)
         res.status(StatusCodes.OK).json(updateProduct);
     }else {
-        const updatedproduct = await Product.updateOne(
-            { ratings : {$elemMatch : isAlreadyRated}},
-            { 
-                $set : {'ratings.$.star' : star,'ratings.$.comment' : comment},
-            },
-            {new : true}
-            )
-        if(!product) throw new BadRequestErr('cannot rate a product');
-        res.status(StatusCodes.OK).json(updatedproduct);
+        console.log('already')
+        try {
+            const updatedproduct = await Product.findOneAndUpdate(
+                {"ratings.postedBy" : id},
+                { 
+                    $set : {'ratings.$.star' : star,'ratings.$.comment' : comment},
+                },
+                {new : true}
+                ).populate('ratings.postedBy')
+            
+            console.log(updatedproduct)
+            res.status(StatusCodes.OK).json(updatedproduct);
+        }catch(err) {
+            console.log(err);
+        }
+       
 
     }
 }
@@ -181,157 +213,51 @@ const removeFromWishlist = async(req,res) => {
     res.status(StatusCodes.OK).json(user);
 }
 const addToCart = async(req,res) => {
-    // console.log('add to cart')
     const {id} = req.user;
-    const user = await User.findById(id);
-    // console.log(user);
-    const {count,color,product} = req.body;
-    const obj = {};
-    const products = [];
-    obj.count = count;
-    obj.color = color;
-    obj.product = product;
-    const findProduct = await Product.findById(product);
-    if(!findProduct) throw new NotFoundErr(`there is no product with id ${id}`)
-    const price = findProduct.price;
-    const quantity = findProduct.quantity;
-    obj.price = price;
-    products.push(obj);
-    // console.log({products});
-    // console.log(findProduct);
-    const cart = await Cart.findOne({userCart : user._id,'products.$.product':product})
-    const productAlreadyExist = cart?.products?.find((item) => item.product.toString() === product);
-    console.log(count, quantity)
-    if(count > quantity) {
-        console.log('count > quantity')
-        throw new NotFoundErr('cannot add to cart more than its quantity')
-    }
-    if(quantity > 0) {
-        if(!productAlreadyExist) {
-            console.log('!productAlreadyExist')
-            // const total = await Cart.findOne({orderBy : user._id})?.select('totalPrice').exec();
-            // console.log(total?.totalPrice)
-            // const totalPrice = (total ? total.totalPrice : 0)+ (price * count);
-            // console.log(totalPrice)
-            const increasePrice = price * count;
-            const updatedProduct = await Cart.findOneAndUpdate(
-                {userCart : user._id},
-                {$push : { products},$inc : {totalPrice : increasePrice} },
-                {new : true}
-            )
-            findProduct.quantity = quantity-1;
-            await findProduct.save();
-            if(!updatedProduct) {
-                //create product in cart
-                console.log('first time push item to cart')
-                const firstPush = await Cart.create({products,userCart:user._id,totalPrice:obj.price});
-                if(!firstPush)  throw new BadRequestErr('cannot add to cart');
-                const pushProductIntoUserCart = await User.findByIdAndUpdate(
-                    id,
-                    {
-                        cart : firstPush
-                    },
-                    {new :true}
-                ).populate('cart')
-                res.status(StatusCodes.OK).json(pushProductIntoUserCart)
-            }else {
-                const pushProductIntoUserCart = await User.findByIdAndUpdate(
-                    id,
-                    {
-                        cart : updatedProduct
-                    },
-                    {new :true}
-                ).populate('cart')
-                res.status(StatusCodes.OK).json(pushProductIntoUserCart)
-            }
-            
-        }else {
-            console.log('product exist')
-            const validProductId = mongoose.Types.ObjectId(product);
-            //another solution
-            // const cart = await Cart.findOne({orderBy : user._id,"products.product":validProductId});
-            // if(cart) {
-            //     cart.products.forEach((product) => {
-            //         console.log(product.product,validProductId)
-            //         if(product.product == validProductId) {
-            //             console.log(product.product,validProductId)
-            //             product.count += count
-            //         }else {
-            //             console.log('not equal')
-            //         }
-            //     })
-            // await cart.save();
-            // res.status(StatusCodes.OK).json(cart);
-            // }
-            const total = await Cart.findOne({userCart : user._id}).select("totalPrice").exec();
-            const totalPrice =total.totalPrice + (price * count);
-            console.log(total,totalPrice)
-            const updatedProduct = await Cart.findOneAndUpdate(
-                {
-                  userCart: user._id,
-                  "products.product": validProductId
-                },
-                {
-                  $inc: { "products.$.count": count },
-                  $set : {totalPrice}
-                },
-                { new: true }
-              );
-              const pushProductIntoUserCart = await User.findByIdAndUpdate(
-                id,
-                {
-                    cart : updatedProduct
-                },
-                {new :true}
-            ).populate('cart')
-            
-            findProduct.quantity = quantity-1;
-            await findProduct.save();
-            console.log('after reducing')
-            res.status(StatusCodes.OK).json(pushProductIntoUserCart)
-        }
-       
-    }else {
-        res.status(StatusCodes.NOT_FOUND).json({msg : "already sold out"})
+    const {productId,quantity,price,color} = req.body;
+    try {
+        const addToCart = await Cart.create({userId :id,...req.body})
+        console.log(addToCart);
+        if(!addToCart) throw new BadRequestErr('cannot add to cart.')
+        return res.status(StatusCodes.OK).json(addToCart);
+    }catch(err) {
+        console.log(err);
     }
 }
 const removeFromCart = async(req,res) => {
-    const {product,price,color} = req.body;
-    const productDoc = await Product.findById(product);
-    if(!productDoc) {
-        throw new NotFoundErr(`cannot find the product with id ${product}`)
-    }
-    const cartId = req.user.cart;
-    const userCart = await Cart.findById(cartId);
-    const matchedProduct = userCart.products.filter((product) => {
-        return product === product
-    })
-    const findProduct = await Product.findById(product);
-    const priceToBeRemoved = matchedProduct.length * findProduct.price;
-    userCart.totalPrice = userCart.totalPrice - priceToBeRemoved;
-    await userCart.save();
-    const updatedUserCart = await Cart.findByIdAndUpdate(
-        cartId,
-        {
-            $pull : {
-                products : {
-                        product
-                }
-            }
-        },
-        {new: true}
-    )
-    findProduct.quantity += matchedProduct.length;
-    await findProduct.save();
-    res.status(StatusCodes.OK).json(updatedUserCart);
+  const {id} = req.user;
+  const {cartItemId} = req.params;
+
+  const deletedCart = await Cart.deleteOne(
+    {userId :id, _id : cartItemId}
+  );
+  if(!deletedCart) throw new BadRequestErr('Cannot delete cart item');
+  res.status(StatusCodes.OK).json(deletedCart);
+}
+const emptyCart = async(req,res) => {
+    const {id} = req.user;
+    const deletedAll = await Cart.deleteMany({userId : id});
+    res.status(StatusCodes.OK).json(deletedAll);
 }
 const getUserCart = async(req,res) => {
     const {id} = req.user;
-    const cart = await Cart.find({userCart:id});
+    const cart = await Cart.find({userId:id}).populate('productId');
     if(!cart.length>0) throw new NotFoundErr("there's no products in cart")
     res.status(StatusCodes.OK).json(cart);
 }
 
+const updateUserCart = async(req,res) => {
+    const {id} = req.user;
+    const {cartItemId} = req.params;
+    const updatedUserCart = await Cart.findOneAndUpdate(
+        {_id : cartItemId, userId : id},
+        {...req.body},
+        {new : true}
+    )
+    if(!updatedUserCart) throw new BadRequestErr(`cannot update the cart item id ${cartItemId}`);
+    res.status(StatusCodes.OK).json(updatedUserCart);
+}
 
 
-module.exports = {createProduct,updateProduct,getProduct,getAllProducts,deleteProduct,rateAProduct,addToWishLists,removeFromWishlist,addToCart,rateAProduct,getUserCart,removeFromCart}
+
+module.exports = {createProduct,updateProduct,getTags,getProduct,getAllProducts,emptyCart,updateUserCart,deleteProduct,rateAProduct,addToWishLists,removeFromWishlist,addToCart,rateAProduct,getUserCart,removeFromCart}

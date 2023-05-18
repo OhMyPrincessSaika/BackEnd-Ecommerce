@@ -18,12 +18,14 @@ const updatePassword = async(req,res) => {
 }
 
 const forgotPassword = async(req,res) => {
-    const {id,email} = req.user;
+    const {email} = req.body;
+    const {id} = req.user;
     const user = await User.findById(id);
     if(!user) throw new BadRequestErr(`there is no user with id ${id}`);
     const token = await user.generateResetToken();
     await user.save();
-    const resetUrl = `To reset password.Please follow below link.This link is valid till 10 minutes.<br><a href='${process.env.BASE_URL}/user/password/reset-password/${token}'>Click Here</a>`;
+    //TODO : change link to dynamic
+    const resetUrl = `To reset password.Please follow below link.This link is valid till 10 minutes.<br><a href='http://localhost:3000/reset-password/${token}'>Click Here</a>`;
     const data = {
         to : email,
         subject : "Password Reset Link",
@@ -51,6 +53,33 @@ const resetPassword = async(req,res) => {
     res.status(StatusCodes.OK).json({user,status : "success"});
 }
 
+const updateUser = async(req,res) => {
+    const obj = {};
+    const {firstname,lastname,phonenum,email} = req.body;
+    if(firstname !== '')  obj.firstname = firstname;
+    if(lastname !== '') obj.lastname = lastname;
+    if(phonenum !== '') obj.phonenum = phonenum;
+    if(email !== '') obj.email = email;
+    const {id} = req.user;
+    const updatedUser = await User.findByIdAndUpdate(
+        id,
+        {
+            ...obj
+        },
+        {
+            new : true
+        }
+    )
+    if(!updatedUser) throw new BadRequestErr('cannot update the user\'s data');
+    res.status(StatusCodes.OK).json(updatedUser);
+}
+
+const getUser = async(req,res) => {
+    const {id} = req.user;
+    const user = await User.findById(id);
+    if(!user) throw new NotFoundErr(`there is no user`);
+    res.status(StatusCodes.OK).json(user);
+}
 const getAllCoupons = async(req,res) => {
     const coupons = await Coupon.find({});
     if(!coupons.length > 0) throw new NotFoundErr("You don't have no coupon");
@@ -101,4 +130,4 @@ const getUserWishLists = async(req,res) => {
 }
 
 
-module.exports = {updatePassword,forgotPassword,resetPassword,getAllCoupons,applyCoupon,getUserWishLists}
+module.exports = {getUser,updateUser,updatePassword,forgotPassword,resetPassword,getAllCoupons,applyCoupon,getUserWishLists}

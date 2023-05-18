@@ -4,54 +4,20 @@ const Order = require('../models/Order');
 const {StatusCodes} = require('http-status-codes');
 const { BadRequestErr, CustomErr, NotFoundErr } = require('../errors');
 const createOrder = async(req,res) => {
-    const {id} = req.user;
-    const user = await User.findById(id);
-    const userCart = await Cart.findById(user.cart);
-    const isCouponApplied = user.couponApplied;
-    const {products} = await Cart.findOne({userCart : req.user.id}).populate('products.product');
-    console.log(products);
-    const update = products.map(async(item) => {
-        const product = item.product;
-        if(product?.quantity > 0) {
-            await Product.findByIdAndUpdate(
-                product._id,
-                {$inc : {quantity : -product.quantity,sold : +product.quantity}}
-            )
-            const cart = await Cart.findOne(
-                {"products.$.product" : product._id}
-            )
-            console.log(cart);
-        }else {
-            console.log('quantity is 0')
-            return;
-        }
+   const {shippingInfo,orderItems,totalPrice,totalPriceAfterDiscount,user} = req.body;
+   
+   try {
+    const order = await Order.create({
+        shippingInfo,orderItems,totalPrice,totalPriceAfterDiscount,user 
     })
-    let finalAmount = 0;
-    if(isCouponApplied) {
-        finalAmount = userCart.discountPrice;
-    }else {
-        finalAmount = userCart.totalPrice
-    }
-    const shouldCreateProduct = products.every((product) => product.product != null);
-    console.log(shouldCreateProduct)
-    if(shouldCreateProduct) {
-        const newOrder = await Order.create({
-            products,
-            orderBy:req.user.id,
-            paymentIntent : {
-                currency : "usd",
-                method  : "COD",
-                status : "Cash On Delivery",
-                created : Date.now(),
-                amount : finalAmount
-            }
-        })
+    res.status(StatusCodes.OK).json({order,success:true})
+   }catch(err) {
+        console.log(err);
+   }
 
-        res.status(StatusCodes.OK).json(newOrder);
-    }else {
-        throw new BadRequestErr('cannot create order without product(s) in your cart.')
-    }
 }
+
+
 
 
 
@@ -66,27 +32,98 @@ const updateOrderStatus = async(req,res) => {
     res.status(StatusCodes.OK).json(orderToBeUpdated);
 }
 
-const getOrders = async(req,res) => {
-    const orders = await Order.find({}).populate('orderBy products.product')
-    console.log(orders);
-    if(orders.length < 1) {
-        throw new NotFoundErr('there is no orders');
-    }
-   
+const getOrderById = async(req,res) => {
+    const {id} = req.params;
+    const order = await Order.findById(id).populate('orderItems.product user');
+    res.json(order);
+}
+
+const getMyOrder = async(req,res) => {
+    const {id} = req.user;
+    const orders = await Order.find({user : id}).populate('user orderItems.product');
     res.status(StatusCodes.OK).json(orders);
 }
 
-const getOrdersByUserId = async(req,res) => {
-    const {id} = req.params;
-    try {
-        const orders = await Order.find({orderBy : id}).populate('orderBy products.product');
-        if(orders.length < 1) {
-            throw new NotFoundErr(`there is no orders by this user id ${id}`)
-        }
-        res.status(StatusCodes.OK).json(orders);
-    }catch (err) {
-        throw new BadRequestErr(err.message);
+const getMonthOrderIncome = async(req,res) => {
+    let monthName = ["January","February","March","April","May","June","July",
+    "August","September","October","November","December"];
+    let d = new Date();
+    let endDate = "";
+    d.setDate(1);
+    for(let i=0; i < 11; i++) {
+        d.setMonth(d.getMonth() -1);
+        console.log(d.getMonth())
+        endDate = monthName[d.getMonth()]+' '+d.getFullYear();
     }
+    const data = await Order.aggregate([
+        {
+            $match : {
+               createdAt : {
+                $lte : new Date(),
+                $gte : new Date(endDate)
+               } 
+            }
+        },{
+            $group : {
+                _id : {
+                    month : "$month"
+                },
+                amount : {$sum : "$totalPriceAfterDiscount"},
+                count : {$sum : 1}
+            }
+        }
+    ])
+    res.json(data);
 
 }
-module.exports ={createOrder,updateOrderStatus,getOrders,getOrdersByUserId};
+
+
+const getYearlyOrderIncome = async(req,res) => {
+    const monthName = ["January","February","March","April","May","June","July",
+    "August","September","October","November","December"];
+    let d = new Date();
+    let endDate = '';
+    d.setDate(1);
+    for( let i=0; i<=11; i++) {
+        d.setMonth(d.getMonth() - 1);
+        if(i==11) {
+            endDate = monthName[d.getMonth()] + " " + d.getFullYear(); 
+        }
+    }
+    console.log(endDate);
+    const data = await Order.aggregate([
+        {
+            $match : {
+                createdAt : {
+
+                    $lte : new Date(),
+                    $gte : new Date(endDate)
+                }
+            }
+        },{
+            $group : {
+                _id : null,
+                count : {$sum : 1},
+                amount : {$sum : '$totalPriceAfterDiscount'}
+            }
+        }
+    ])
+    res.json(data);
+}
+
+const getAllOrders = async(req,res) => {
+    const orders = await Order.find({}).sort('-createdAt').populate('user');
+    if(orders.length < 1) {
+        throw new NotFoundErr('there is no orders yet.');
+    }
+    res.json(orders);
+}
+module.exports ={
+    createOrder,
+    updateOrderStatus,
+    getMyOrder,
+    getMonthOrderIncome,
+    getYearlyOrderIncome,
+    getAllOrders,
+    getOrderById
+};

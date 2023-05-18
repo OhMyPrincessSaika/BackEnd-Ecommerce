@@ -23,9 +23,10 @@ var prodcutSchema = new mongoose.Schema({
         type : Number,
         default : 0
     },
+    
     tag : String,
     ratings : [
-        {
+        {   
             star : Number,
             comment : String,
             postedBy : {
