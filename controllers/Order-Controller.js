@@ -22,13 +22,14 @@ const createOrder = async(req,res) => {
 
 
 const updateOrderStatus = async(req,res) => {
-    const {id} = req.user;
+    const {id} = req.params;
     const {orderStatus} = req.body;
-    const orderToBeUpdated = await Order.findOneAndUpdate(
-        {user : id},
+    const orderToBeUpdated = await Order.findByIdAndUpdate(
+        id,
         {orderStatus},
         {new :true}
     )
+    console.log(orderToBeUpdated)
     res.status(StatusCodes.OK).json(orderToBeUpdated);
 }
 
