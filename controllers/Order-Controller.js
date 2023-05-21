@@ -25,7 +25,7 @@ const updateOrderStatus = async(req,res) => {
     const {id} = req.user;
     const {orderStatus} = req.body;
     const orderToBeUpdated = await Order.findOneAndUpdate(
-        {orderBy : id},
+        {user : id},
         {orderStatus},
         {new :true}
     )
