@@ -29,9 +29,22 @@ const getTags = async(req,res) => {
 }
 const getProduct = async(req,res) => {
     const {id} = req.params;
-    const product = await Product.findById(id);
+    
+    const product = await Product.findById(id).populate('ratings.postedBy');
     if(!product) throw new NotFoundErr(`cannot find product with this id ${id}`);
-    res.status(StatusCodes.OK).json(product);
+    let avgRating = 0;
+
+    for(let i=0; i<product?.ratings?.length; i++) {
+        avgRating += product?.ratings[i].star;
+    }
+    if(avgRating !== 0 ) {
+        product.totalRating = (avgRating / product?.ratings?.length).toString();
+        
+        await product.save();
+        res.status(StatusCodes.OK).json(product);
+    }else {
+        res.status(StatusCodes.OK).json(product);
+    }
 }
 const updateProduct = async(req,res) => {
     const {id} = req.params;
@@ -101,21 +114,21 @@ const getAllProducts = async(req,res) => {
     }
     const products = await result;
 
-    let totalRating;
-    let totalStars=0;
-    let totalReview=0;
-    products?.map(async(product) => {
-        if(product.ratings.length > 0) {
-           product.ratings.map((rating) => {
-             totalStars+= rating.star
-             totalReview++;
-           })
-           totalRating = Math.round(totalStars/totalReview);
-        }else {
-            totalRating = 0;
-        }
-        await Product.findByIdAndUpdate(product._id,{totalRating},{new:true});
-    });
+    // let totalRating;
+    // let totalStars=0;
+    // let totalReview=0;
+    // products?.map(async(product) => {
+    //     if(product.ratings.length > 0) {
+    //        product.ratings.map((rating) => {
+    //          totalStars+= rating.star
+    //          totalReview++;
+    //        })
+    //        totalRating = Math.round(totalStars/totalReview);
+    //     }else {
+    //         totalRating = 0;
+    //     }
+    //     await Product.findByIdAndUpdate(product._id,{totalRating},{new:true});
+    // });
     if(!products.length > 0) throw new NotFoundErr("there's no products");
     res.status(StatusCodes.OK).json({products,hits : products.length});
 }
@@ -130,36 +143,42 @@ const rateAProduct = async(req,res) => {
     const {star,comment} = req.body;
     const {productId} = req.params;
     const {id} = req.user;
-    const product = await Product.findById(productId);
-    const isAlreadyRated = product.ratings.find((item) => item.postedBy.toString() === id.toString());
-    console.log(isAlreadyRated)
-    if(!isAlreadyRated) {
-        const updateProduct = await Product.findByIdAndUpdate(
-            productId,
-            {$push : {ratings : {star,comment,postedBy:id}}},
-            {new:true}
-        ).populate('postedBy')
-        console.log(updateProduct)
-        res.status(StatusCodes.OK).json(updateProduct);
-    }else {
-        console.log('already')
-        try {
-            const updatedproduct = await Product.findOneAndUpdate(
-                {"ratings.postedBy" : id},
-                { 
-                    $set : {'ratings.$.star' : star,'ratings.$.comment' : comment},
-                },
-                {new : true}
-                ).populate('ratings.postedBy')
+    // const product = await Product.findById(productId);
+    // const isAlreadyRated = product.ratings.find((item) => item.postedBy.toString() === id.toString());
+    // console.log(isAlreadyRated)
+    // if(!isAlreadyRated) {
+    //     console.log('new');
+    //     try {
+            const updateProduct = await Product.findByIdAndUpdate(
+                productId,
+                {$push : {ratings : {star,comment,postedBy:id}}},
+                {new:true}
+            )
+            await updateProduct.populate('ratings.postedBy')
+            res.status(StatusCodes.OK).json(updateProduct);
+    //     }catch(err) {
+    //         console.log(err);
+    //     }
+      
+    // }else {
+    //     console.log('already')
+    //     try {
+    //         const updatedproduct = await Product.findOneAndUpdate(
+    //             {"ratings.postedBy" : id},
+    //             { 
+    //                 $set : {'ratings.$.star' : star,'ratings.$.comment' : comment},
+    //             },
+    //             {new : true}
+    //             ).populate('ratings.postedBy')
             
-            console.log(updatedproduct)
-            res.status(StatusCodes.OK).json(updatedproduct);
-        }catch(err) {
-            console.log(err);
-        }
+    //         console.log(updatedproduct)
+    //         res.status(StatusCodes.OK).json(updatedproduct);
+    //     }catch(err) {
+    //         console.log(err);
+    //     }
        
 
-    }
+    // }
 }
 
 const addToWishLists = async (req,res) => {
@@ -214,15 +233,43 @@ const removeFromWishlist = async(req,res) => {
 }
 const addToCart = async(req,res) => {
     const {id} = req.user;
-    const {productId,quantity,price,color} = req.body;
-    try {
-        const addToCart = await Cart.create({userId :id,...req.body})
-        console.log(addToCart);
-        if(!addToCart) throw new BadRequestErr('cannot add to cart.')
-        return res.status(StatusCodes.OK).json(addToCart);
-    }catch(err) {
-        console.log(err);
+    const {productId,quantity,price,color,size} = req.body;
+    const isCartExist =await Cart.findOne({userId : id});
+    const isColorExist = isCartExist?.color?.find((item) => item === color);
+   
+    if(!isCartExist) {
+        try {
+            const addToCart = await Cart.create({userId :id,...req.body});
+            console.log(addToCart);
+            if(!addToCart) throw new BadRequestErr('cannot add to cart.')
+            return res.status(StatusCodes.OK).json(addToCart);
+        }catch(err) {
+            console.log(err);
+        }
+    }else {
+        try {
+            let updateCart;
+            if(isColorExist) {
+                 updateCart = await Cart.findOneAndUpdate(
+                    {userId : id},
+                    {$push : {size},$inc : {quantity}},
+                    {new :true}
+                    )
+            }else {
+                updateCart = await Cart.findOneAndUpdate(
+                    {userId : id},
+                    {$push : {color,size},$inc : {quantity}},
+                    {new :true}
+                    )
+            }
+           
+            return res.status(StatusCodes.OK).json(updateCart);
+        }catch(err) {
+            console.log(err);
+        }
     }
+   
+   
 }
 const removeFromCart = async(req,res) => {
   const {id} = req.user;
@@ -249,15 +296,35 @@ const getUserCart = async(req,res) => {
 const updateUserCart = async(req,res) => {
     const {id} = req.user;
     const {cartItemId} = req.params;
+    const  {quantity,color,price} = req.body;
+    console.log(quantity,price)
     const updatedUserCart = await Cart.findOneAndUpdate(
         {_id : cartItemId, userId : id},
-        {...req.body},
+        {
+            $inc : {quantity : quantity,price : price},
+            $push : { color : color}
+        },
+
         {new : true}
     )
     if(!updatedUserCart) throw new BadRequestErr(`cannot update the cart item id ${cartItemId}`);
     res.status(StatusCodes.OK).json(updatedUserCart);
 }
 
+const addSize = async(req,res) => {
+    const {id} = req.params;
+    const { size } = req.body;
+    const updatedProduct = await Product.findByIdAndUpdate(
+        id,
+        {
+            $push : {size}
+        },
+        {
+            new : true
+        }
+    )
+    res.status(StatusCodes.OK).json(updatedProduct);
+}
 
 
-module.exports = {createProduct,updateProduct,getTags,getProduct,getAllProducts,emptyCart,updateUserCart,deleteProduct,rateAProduct,addToWishLists,removeFromWishlist,addToCart,rateAProduct,getUserCart,removeFromCart}
+module.exports = {addSize,createProduct,updateProduct,getTags,getProduct,getAllProducts,emptyCart,updateUserCart,deleteProduct,rateAProduct,addToWishLists,removeFromWishlist,addToCart,rateAProduct,getUserCart,removeFromCart}

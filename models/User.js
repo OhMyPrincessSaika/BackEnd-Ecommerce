@@ -28,10 +28,6 @@ const userSchema = new mongoose.Schema({
         unique : true,
         required : [true,'please provide phone number']
     },
-    isAdmin : {
-        type: Boolean,
-        default: true
-    },
     cart : {
         type : mongoose.Types.ObjectId,
         ref : "Cart"
@@ -56,10 +52,14 @@ const userSchema = new mongoose.Schema({
             }
         }
     ],
+    notification : {
+        type : mongoose.Types.ObjectId,
+        ref:'Notification'
+    },
     couponApplied: Boolean
     
 })
-userSchema.methods.createJWT =async function(req,res) {
+userSchema.methods.createJWT =async function() {
     const token = await jwt.sign({id:this._id},process.env.JWT_SECRET,{expiresIn: '3d'});
     return token;
 }

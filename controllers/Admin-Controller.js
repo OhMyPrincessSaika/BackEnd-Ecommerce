@@ -1,8 +1,10 @@
 const {StatusCodes} = require('http-status-codes');
 const User = require('../models/User');
-const Order = require('../models/Order')
 const {NotFoundErr, BadRequestErr} = require('../errors')
 const Coupon = require('../models/Coupon');
+const Admin = require('../models/Admin');
+const Notification = require('../models/Notification');
+const BadRequestError = require('../errors/BadRequestErr');
 const getAllUsers = async(req,res) => {
     const users = await User.find({});
     if(!users.length > 0) throw NotFoundErr('there is no users');
@@ -130,6 +132,77 @@ const deleteCoupon = async (req,res) => {
 }
 
 
+//admin
 
 
-module.exports = {getAllUsers,getUser,updateUser,deleteUser,createCoupon,getAllCoupons,giveCouponToUser,updateCoupon,deleteCoupon,getCoupon,removeCouponFromUser};
+const getAllAdmins = async(req,res) => {
+   
+    console.log('here')
+    const allAdmins = await Admin.find({});
+    
+    if(allAdmins.length !== 0) {
+        res.status(StatusCodes.OK).json(allAdmins);
+    }else {
+        throw new NotFoundErr('There is no admins');
+    }
+}
+const updateAdmin = async(req,res) => {
+    const {id} = req.params;
+    const updatedData = await Admin.findByIdAndUpdate(
+        id,
+        {...req.body},
+        {new: true}
+    );
+    res.status(StatusCodes.OK).json(updatedData);
+}
+
+const getAdmin = async(req,res) => {
+    const {id} = req.params;
+    const admin = await Admin.findById(id);
+    res.status(StatusCodes.OK).json(admin);
+}
+
+const deleteAdmin = async(req,res) => {
+    const {id} = req.params;
+    const deletedAdmin = await Admin.findByIdAndDelete(id);
+    res.status(StatusCodes.OK).json(deletedAdmin);
+}
+
+const addNotification = async(req,res) => {
+    const {name,description,read} = req.body;
+    console.log(name,description,read);
+    const createdNotification = await Notification.create({
+        name,
+        description,
+        read
+    });
+    res.status(StatusCodes.OK).json(createdNotification);
+}
+
+const getAllNotifications = async(req,res) => {
+    const notifications = await Notification.find({});
+    const unreadNotis = notifications?.filter((noti) => noti.read !== true);
+    const readNotis = notifications?.filter((noti) => noti.read === true);
+    
+    const arr = [];
+    unreadNotis.map((noti) =>  arr.push(noti));
+    readNotis.map((noti) => arr.push(noti));    
+    
+    res.status(StatusCodes.OK).json(arr);
+}
+
+const updateNotifications = async(req,res) => {
+    const {id} = req.params;
+    console.log(id);
+    const updatedNoti = await Notification.findByIdAndUpdate(
+        id,
+        {
+            read : true
+        },
+        {
+            new : true
+        }
+    )
+    res.status(StatusCodes.OK).json(updatedNoti);
+}
+module.exports = {getAllUsers,getUser,updateUser,deleteUser,createCoupon,getAllCoupons,giveCouponToUser,updateCoupon,getAllNotifications,deleteCoupon,getCoupon,removeCouponFromUser,getAdmin,updateAdmin,deleteAdmin,getAllAdmins,addNotification,updateNotifications};

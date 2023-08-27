@@ -24,6 +24,7 @@ const createOrder = async(req,res) => {
 const updateOrderStatus = async(req,res) => {
     const {id} = req.params;
     const {orderStatus} = req.body;
+    console.log(orderStatus)
     const orderToBeUpdated = await Order.findByIdAndUpdate(
         id,
         {orderStatus},

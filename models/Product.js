@@ -15,6 +15,9 @@ var prodcutSchema = new mongoose.Schema({
         require: true
     },
     color : [],
+    size : {
+        type : String,
+    },
     quantity : {
         type : Number,
         require : true
@@ -36,7 +39,7 @@ var prodcutSchema = new mongoose.Schema({
         }
     ],
     totalRating : {
-        type : Number
+        type : String,
     },
     price : {
         type : Number,

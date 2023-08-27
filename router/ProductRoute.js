@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 // const {uploadProductImages} = require('../controllers/UploadCtrl')
-const {createProduct,updateProduct,uploadProductImages,getProduct,getAllProducts,deleteProduct, rateAProduct, addToWishLists, addToCart, getUserCart, removeFromCart, removeFromWishlist, emptyCart, updateUserCart, getTags} = require('../controllers/Product_Controller');
+const {createProduct,updateProduct,uploadProductImages,getProduct,getAllProducts,deleteProduct, rateAProduct, addToWishLists, addToCart, getUserCart, removeFromCart, removeFromWishlist, emptyCart, updateUserCart, getTags, addSize} = require('../controllers/Product_Controller');
 const {authmiddleware} = require('../middlewares/authmiddleware');
 
 router.route('/').post(createProduct).get(getAllProducts);
@@ -15,5 +15,6 @@ router.route('/cart/products').get(authmiddleware,getUserCart);
 router.route('/cart/remove-from-cart/:cartItemId').delete(authmiddleware,removeFromCart)
 router.route('/cart/empty-cart').delete(authmiddleware,emptyCart);
 router.route('/cart/update-cart/:cartItemId').patch(authmiddleware,updateUserCart)
+router.route('/size/:id').post(authmiddleware,addSize);
 
 module.exports = router;

@@ -20,15 +20,17 @@ const enqRoute = require('./router/EnqRoute');
 const uploadRoute = require('./router/uploadRoute');
 const blogRoute = require('./router/BlogRoute');
 const blogCatRoute = require('./router/BlogCatRoute');
+const bannerRoute = require('./router/BannerRoute');
+const bannerCatRoute = require('./router/BannerCatRoute');
 //middleware
 const errorHandler = require('./middlewares/errorhandler')
-const {authmiddleware,adminmiddleware} = require('./middlewares/authmiddleware');
+
 const notfoundmiddleware = require('./middlewares/notfoundhandler');
 app.use(express.json());
 app.use(cors());
 app.use('/',authRoute);
 app.use('/user',userRoute);
-app.use('/admin',[authmiddleware,adminmiddleware],adminRoute);
+app.use('/admin',adminRoute);
 app.use('/product',productRoute);
 app.use('/brand',brandRoute);
 app.use('/category',categoryRoute);
@@ -38,6 +40,8 @@ app.use('/upload',uploadRoute)
 app.use('/blog',blogRoute);
 app.use('/order',orderRoute)
 app.use('/blog-category',blogCatRoute);
+app.use('/banner',bannerRoute);
+app.use('/bannercategory',bannerCatRoute);
 app.use(notfoundmiddleware)
 
 app.use(errorHandler);

@@ -1,8 +1,10 @@
 const {StatusCodes} = require('http-status-codes');
 const User = require('../models/User');
+const Admin  = require('../models/Admin');
 const {UnauthorizedErr,BadRequestErr,DuplicateErr,NotFoundErr} = require('../errors')
 const jwt = require('jsonwebtoken')
 const authmiddleware = async(req,res,next) => {
+    console.log('authmiddleware')
     const auth = req.headers.authorization;
     if(!auth || !auth.startsWith('Bearer')) throw new UnauthorizedErr('Unauthoried to access');
     const token = auth.split(' ')[1];
